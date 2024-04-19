@@ -43,10 +43,12 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 4002, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
+	println(os.Getenv("DSN"))
 	// Read the DSN value from the db-dsn command-line flag into the config struct. We
 	// default to using our development DSN if no flag is provided.
-	// in powershell use next command: $env:DSN="postgres://postgres:postgres@localhost:5432/greenlight?sslmode=disable"
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("DSN"), "PostgresSQL DSN")
+	// in powershell use next command: $env:DSN="postgres://b.atabek:b.atabek@localhost:5432/b.atabekDB?sslmode=disable"
+	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("DSN")+"?sslmode=disable", "PostgresSQL DSN")
+	//flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://b.atabek:b.atabek@localhost:5443/b.atabekDB?sslmode=disable", "PostgresSQL DSN")
 
 	// Setting restrictions on db connections
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgresSQL max open connections")

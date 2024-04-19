@@ -15,15 +15,17 @@ var (
 // Create a Models struct which wraps the MovieModel
 // kind of enveloping
 type Models struct {
-	Movies      MovieModel
-	ModuleInfos ModuleInfoModel
+	Movies          MovieModel
+	ModuleInfos     ModuleInfoModel
+	DepartmentInfos DepartmentInfoModel
 }
 
 // method which returns a Models struct containing the initialized MovieModel.
 func NewModels(db *sql.DB) Models {
 	return Models{
-		Movies:      MovieModel{DB: db},
-		ModuleInfos: ModuleInfoModel{DB: db},
+		Movies:          MovieModel{DB: db},
+		ModuleInfos:     ModuleInfoModel{DB: db},
+		DepartmentInfos: DepartmentInfoModel{DB: db},
 	}
 }
 
@@ -35,4 +37,11 @@ type ModuleInfo struct {
 	ModuleDuration time.Duration `json:"moduleDuration"`
 	ExamType       string        `json:"examType"`
 	Version        string        `json:"version"`
+}
+type DepartmentInfo struct {
+	ID                 int    `json:"id"`
+	DepartmentName     string `json:"departmentName"`
+	StaffQuantity      int    `json:"staffQuantity"`
+	DepartmentDirector string `json:"departmentDirector"`
+	ModuleId           int    `json:"moduleId"`
 }

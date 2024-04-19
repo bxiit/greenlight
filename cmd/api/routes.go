@@ -27,6 +27,10 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodGet, "/v1/module-infos", app.getLatestFiftyModuleInfosHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/module-infos/:id", app.editModuleInfoHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/module-infos/:id", app.deleteModuleInfoHandler)
+
+	// dep
+	router.HandlerFunc(http.MethodPost, "/v1/department-infos", app.createDepInfoHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/department-infos/:id", app.getDepartmentInfoHandler)
 	// Return the httprouter instance.
 	return router
 }

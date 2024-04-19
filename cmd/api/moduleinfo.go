@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/bxiit/greenlight/internal/data"
@@ -65,9 +66,16 @@ func (app *application) getModuleInfoHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *application) getLatestFiftyModuleInfosHandler(w http.ResponseWriter, r *http.Request) {
-	moduleInfos := app.models.ModuleInfos.GetLatestFifty()
+	moduleInfos, err := app.models.ModuleInfos.GetLatestFifty()
 
-	err := app.writeJSON(w, http.StatusOK, envelope{"module_infos": moduleInfos}, nil)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			app.notFoundResponse(w, r)
+		}
+	}
+	
+	err = app.writeJSON(w, http.StatusOK, envelope{"module_infos": moduleInfos}, nil)
 	if err != nil {
 		return
 	}

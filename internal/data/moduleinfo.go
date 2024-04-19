@@ -67,12 +67,17 @@ func (m ModuleInfoModel) Get(id int64) (*ModuleInfo, error) {
 	return &moduleInfo, nil
 }
 
-func (m ModuleInfoModel) GetLatestFifty() []*ModuleInfo {
+func (m ModuleInfoModel) GetLatestFifty() ([]*ModuleInfo, error) {
 	query := `SELECT * FROM module_info ORDER BY id DESC LIMIT 50`
 
 	rows, err := m.DB.Query(query)
 	if err != nil {
-		return nil
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
 	}
 
 	var moduleInfos []*ModuleInfo
@@ -89,17 +94,17 @@ func (m ModuleInfoModel) GetLatestFifty() []*ModuleInfo {
 		)
 
 		if err != nil {
-			return nil
+			return nil, err
 		}
 
 		moduleInfos = append(moduleInfos, moduleInfo)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil
+		return nil, err
 	}
 
-	return moduleInfos
+	return moduleInfos, nil
 }
 
 // Update method for updating a specific record in the moduleInfos table.
