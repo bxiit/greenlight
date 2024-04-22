@@ -3,7 +3,6 @@ package data
 import (
 	"database/sql"
 	"errors"
-	"log"
 )
 
 type ModuleInfoModel struct {
@@ -13,13 +12,10 @@ type ModuleInfoModel struct {
 // Insert method for creating a record to the moduleInfos table.
 func (m ModuleInfoModel) Insert(moduleInfo *ModuleInfo) error {
 	query := `
-		INSERT INTO module_info(created_at, module_name, module_duration, exam_type)
-		VALUES (now(), $1, $2, $3)
+		INSERT INTO module_info(created_at, updated_at, module_name, module_duration, exam_type)
+		VALUES (now(), now(), $1, $2, $3)
 		RETURNING id, created_at, version`
 
-	log.Println("inserting to database")
-
-	//return m.DB.QueryRow(query, &moduleInfo.Title, &moduleInfo.Year, &moduleInfo.Runtime, pq.Array(&moduleInfo.Genres)).Scan(&moduleInfo.ID, &moduleInfo.CreatedAt, &moduleInfo.Version)
 	return m.DB.QueryRow(
 		query,
 		&moduleInfo.ModuleName,
@@ -54,7 +50,6 @@ func (m ModuleInfoModel) Get(id int64) (*ModuleInfo, error) {
 		&moduleInfo.ExamType,
 		&moduleInfo.Version,
 	)
-
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):

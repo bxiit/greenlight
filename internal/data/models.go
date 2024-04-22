@@ -18,6 +18,10 @@ type Models struct {
 	Movies          MovieModel
 	ModuleInfos     ModuleInfoModel
 	DepartmentInfos DepartmentInfoModel
+	Permissions     PermissionModel // Add a new Permissions field.
+	Users           UserModel
+	Tokens          TokenModel
+	UserInfos       UserInfoModel
 }
 
 // method which returns a Models struct containing the initialized MovieModel.
@@ -26,6 +30,10 @@ func NewModels(db *sql.DB) Models {
 		Movies:          MovieModel{DB: db},
 		ModuleInfos:     ModuleInfoModel{DB: db},
 		DepartmentInfos: DepartmentInfoModel{DB: db},
+		Permissions:     PermissionModel{DB: db}, // Initialize a new PermissionModel instance.
+		Users:           UserModel{DB: db},
+		Tokens:          TokenModel{DB: db},
+		UserInfos:       UserInfoModel{DB: db},
 	}
 }
 
@@ -38,6 +46,7 @@ type ModuleInfo struct {
 	ExamType       string        `json:"examType"`
 	Version        string        `json:"version"`
 }
+
 type DepartmentInfo struct {
 	ID                 int    `json:"id"`
 	DepartmentName     string `json:"departmentName"`
