@@ -26,36 +26,6 @@ type UserInfo struct {
 	Version        int       `json:"-"`
 }
 
-//	func (u UserInfoModel) Insert(userInfo *UserInfo) error {
-//		query := `INSERT INTO user_info(fname, sname, email, password_hash, user_role, activated)
-//				VALUES($1, $2, $3, $4, $5, $6)`
-//
-//		//args := []any{userInfo.Name, userInfo.Surname, userInfo.Email, userInfo.PasswordHashed, userInfo.Role, userInfo.Activated}
-//		_, err := u.DB.Exec(query, &userInfo.Name, &userInfo.Surname, &userInfo.Email, &userInfo.PasswordHashed, &userInfo.Role, &userInfo.Activated)
-//		return err
-//	}
-//
-//	func (u UserInfoModel) Get(userInfo *UserInfo) error {
-//		query := `SELECT * FROM user_info WHERE id = $1`
-//
-//		row := u.DB.QueryRow(query, userInfo.ID)
-//		err := row.Scan(&userInfo.ID, &userInfo.Name, &userInfo.Surname, &userInfo.Email, &userInfo.PasswordHashed, &userInfo.Role, &userInfo.Activated)
-//		return err
-//	}
-//
-//	func (u UserInfoModel) Update(userInfo *UserInfo) error {
-//		query := `UPDATE user_info SET fname = $1, sname = $2, email = $3, password_hash = $4, user_role = $5, activated = $6 WHERE id = $7`
-//
-//		_, err := u.DB.Exec(query, &userInfo.Name, &userInfo.Surname, &userInfo.Email, &userInfo.PasswordHashed, &userInfo.Role, &userInfo.Activated, &userInfo.ID)
-//		return err
-//	}
-//
-//	func (u UserInfoModel) Delete(userInfo *UserInfo) error {
-//		query := `DELETE FROM user_info WHERE id = $1`
-//
-//		_, err := u.DB.Exec(query, userInfo.ID)
-//		return err
-//	}
 var AnonymousUserInfo = &UserInfo{
 	ID:      0,
 	Name:    "anon",
@@ -71,14 +41,9 @@ func (m UserInfoModel) Insert(userInfo *UserInfo) error {
 			INSERT INTO user_info (fname, sname, email, password_hash, user_role, activated)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			RETURNING id, created_at, version`
-	//args := []any{userInfo.Name, userInfo.Surname, userInfo.Email, userInfo.PasswordHashed.hash, "user", userInfo.Activated}
 	args := []interface{}{userInfo.Name, userInfo.Surname, userInfo.Email, userInfo.PasswordHashed.hash, userInfo.Role, userInfo.Activated}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	// If the table already contains a record with this email address, then when we try
-	// to perform the insert there will be a violation of the UNIQUE "users_email_key"
-	// constraint that we set up in the previous chapter. We check for this error
-	// specifically, and return custom ErrDuplicateEmail error instead.
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&userInfo.ID, &userInfo.CreatedAt, &userInfo.Version)
 	if err != nil {
 		switch {
@@ -126,9 +91,6 @@ func (m UserInfoModel) Get(id int64) (*UserInfo, error) {
 	return &userInfo, nil
 }
 
-// Retrieve the User details from the database based on the user's email address.
-// Because we have a UNIQUE constraint on the email column, this SQL query will only
-// return one record (or none at all, in which case we return a ErrRecordNotFound error).
 func (m UserInfoModel) GetByEmail(email string) (*UserInfo, error) {
 	query := `
 			SELECT id, created_at, updated_at, fname, sname, email, password_hash, user_role, activated, version
@@ -198,11 +160,6 @@ func (m UserInfoModel) GetAll() ([]*UserInfo, error) {
 	return userInfos, nil
 }
 
-// Update the details for a specific user. Notice that we check against the version
-// field to help prevent any race conditions during the request cycle, just like we did
-// when updating a movie. And we also check for a violation of the "users_email_key"
-// constraint when performing the update, just like we did when inserting the user
-// record originally.
 func (m UserInfoModel) Update(userInfo *UserInfo) error {
 	query := `
 			UPDATE user_info
@@ -269,7 +226,6 @@ func (m UserInfoModel) GetForToken(tokenScope, tokenPlaintext string) (*UserInfo
 	// Calculate the SHA-256 hash of the plaintext token provided by the client.
 	// Remember that this returns a byte *array* with length 32, not a slice.
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
-	// Set up the SQL query.
 	query := `
 			SELECT public.user_info.id, 
 			       public.user_info.created_at, 
@@ -296,8 +252,6 @@ func (m UserInfoModel) GetForToken(tokenScope, tokenPlaintext string) (*UserInfo
 	var userInfo UserInfo
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	// Execute the query, scanning the return values into a User struct. If no matching
-	// record is found we return an ErrRecordNotFound error.
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
 		&userInfo.ID,
 		&userInfo.CreatedAt,
@@ -340,4 +294,43 @@ func ValidateUserInfo(v *validator.Validator, userInfo *UserInfo) {
 	if userInfo.PasswordHashed.hash == nil {
 		panic("missing password hash for userInfo")
 	}
+}
+
+func (m UserInfoModel) FindNotActivatedAndExpired() ([]*UserInfo, error) {
+	query := `
+			SELECT u.*
+			FROM user_info u
+			INNER JOIN public.user_info_tokens uit on u.id = uit.user_info_id
+			WHERE u.activated = false AND uit.expiry < now()
+`
+
+	rows, err := m.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*UserInfo
+	for rows.Next() {
+		var user UserInfo
+		err = rows.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt, &user.Name, &user.Surname, &user.Email, &user.PasswordHashed.hash, &user.Role, &user.Activated, &user.Version)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (m UserInfoModel) DeleteExpiredToken(id int64) error {
+	query := `
+		DELETE FROM user_info_tokens WHERE user_info_id = $1
+`
+	_, err := m.DB.Query(query, id)
+	return err
 }

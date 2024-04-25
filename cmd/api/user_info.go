@@ -133,7 +133,7 @@ func (app *application) registerUserInfoHandler(w http.ResponseWriter, r *http.R
 		}
 		err := app.mailer.Send(userInfo.Email, "user_welcome.tmpl", data)
 		if err != nil {
-			app.logger.Println(err)
+			app.logger.PrintError(err, nil)
 		}
 	})
 

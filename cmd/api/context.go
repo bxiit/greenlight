@@ -44,8 +44,5 @@ func (app *application) contextGetUserInfo(r *http.Request) *data.UserInfo {
 	if !ok {
 		panic("missing userInfo value in request context")
 	}
-
-	println("IN contextGetUserInfo")
-	println(userInfo.Email)
 	return userInfo
 }

@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/bxiit/greenlight/internal/jsonlog"
 	"github.com/bxiit/greenlight/internal/mailer"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -47,7 +47,7 @@ type config struct {
 
 type application struct {
 	config config
-	logger *log.Logger
+	logger *jsonlog.Logger
 	models data.Models // hold new models in app
 	mailer mailer.Mailer
 	wg     sync.WaitGroup
@@ -74,22 +74,22 @@ func main() {
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.mailtrap.io", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "8b4862ea8715e5", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "869c195324aba5", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@bxiit>", "SMTP sender")
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.office365.com", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "220002@astanait.edu.kz", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "Beka4747@", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "220002@astanait.edu.kz", "SMTP sender")
 
 	flag.Parse()
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
 	db, err := openDB(cfg)
 	if err != nil {
-		logger.Fatalf("Connection failed. Error is: %s", err)
+		logger.PrintFatal(err, nil)
 	}
 	// db will be closed before main function is completed.
 	defer db.Close()
-	logger.Printf("database connection pool established")
+	logger.PrintInfo("database connection pool established", nil)
 
 	app := &application{
 		config: cfg,
@@ -97,6 +97,9 @@ func main() {
 		models: data.NewModels(db), // data.NewModels() function to initialize a Models struct
 		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
+
+	go app.checkAndResendActivation()
+
 	// Use the httprouter instance returned by app.routes() as the server handler.
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
@@ -106,10 +109,14 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
-	logger.Printf("starting %s server on %s", cfg.env, srv.Addr)
+	logger.PrintInfo("starting server", map[string]string{
+		"addr": srv.Addr,
+		"env":  cfg.env,
+	})
 	// reuse defined variable err
+
 	err = srv.ListenAndServe()
-	logger.Fatal(err)
+	logger.PrintFatal(err, nil)
 }
 
 func openDB(cfg config) (*sql.DB, error) {

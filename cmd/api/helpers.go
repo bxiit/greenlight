@@ -43,7 +43,6 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data interf
 		w.Header()[key] = value
 	}
 
-	// Adding Content-Type and status code to header and response as json
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(js)
@@ -90,7 +89,7 @@ func (app *application) background(fn func()) {
 		defer app.wg.Done()
 		defer func() {
 			if err := recover(); err != nil {
-				app.logger.Println(fmt.Errorf("%s", err), nil)
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
 			}
 		}()
 		fn()
