@@ -8,7 +8,16 @@ import (
 	"time"
 )
 
-func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request) {
+type THandler interface {
+	CreateAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request)
+	CreateAuthenticationTokenHandlerUserInfo(w http.ResponseWriter, r *http.Request)
+}
+
+type TokenHandler struct {
+	Repo data.TokenRepository
+}
+
+func (app *application) CreateAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse the email and password from the request body.
 	var input struct {
 		Email    string `json:"email"`
@@ -28,7 +37,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 	// Lookup the user record based on the email address. If no matching user was
-	// found, then we call the app.invalidCredentialsResponse() helper to send a 401
+	// found, then we call the App.invalidCredentialsResponse() helper to send a 401
 	// Unauthorized response to the client (we will create this helper in a moment).
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
@@ -46,7 +55,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		app.serverErrorResponse(w, r, err)
 		return
 	}
-	// If the passwords don't match, then we call the app.invalidCredentialsResponse()
+	// If the passwords don't match, then we call the App.invalidCredentialsResponse()
 	// helper again and return.
 	if !match {
 		app.invalidCredentialsResponse(w, r)
@@ -61,7 +70,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 	// Encode the token to JSON and send it in the response along with a 201 Created
 	// status code.
-	err = app.writeJSON(w, http.StatusCreated, envelope{
+	err = app.writeJSON(w, http.StatusCreated, Envelope{
 		"authentication_token": token,
 	}, nil)
 	if err != nil {
@@ -69,7 +78,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 }
 
-func (app *application) createAuthenticationTokenHandlerUserInfo(w http.ResponseWriter, r *http.Request) {
+func (app *application) CreateAuthenticationTokenHandlerUserInfo(w http.ResponseWriter, r *http.Request) {
 	// Parse the email and password from the request body.
 	var input struct {
 		Email    string `json:"email"`
@@ -89,7 +98,7 @@ func (app *application) createAuthenticationTokenHandlerUserInfo(w http.Response
 		return
 	}
 	// Lookup the user record based on the email address. If no matching user was
-	// found, then we call the app.invalidCredentialsResponse() helper to send a 401
+	// found, then we call the App.invalidCredentialsResponse() helper to send a 401
 	// Unauthorized response to the client (we will create this helper in a moment).
 	userInfo, err := app.models.UserInfos.GetByEmail(input.Email)
 	if err != nil {
@@ -107,7 +116,7 @@ func (app *application) createAuthenticationTokenHandlerUserInfo(w http.Response
 		app.serverErrorResponse(w, r, err)
 		return
 	}
-	// If the passwords don't match, then we call the app.invalidCredentialsResponse()
+	// If the passwords don't match, then we call the App.invalidCredentialsResponse()
 	// helper again and return.
 	if !match {
 		app.invalidCredentialsResponse(w, r)
@@ -123,7 +132,7 @@ func (app *application) createAuthenticationTokenHandlerUserInfo(w http.Response
 
 	// Encode the token to JSON and send it in the response along with a 201 Created
 	// status code.
-	err = app.writeJSON(w, http.StatusCreated, envelope{
+	err = app.writeJSON(w, http.StatusCreated, Envelope{
 		"authentication_token": token,
 	}, nil)
 	if err != nil {

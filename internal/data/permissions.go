@@ -23,8 +23,14 @@ func (p Permissions) Include(code string) bool {
 	return false
 }
 
-// Define the PermissionModel type.
-type PermissionModel struct {
+type PermissionRepository interface {
+	GetAllForUser(userID int64) (Permissions, error)
+	GetAllForUserInfo(userID int64) (Permissions, error)
+	AddForUser(userID int64, codes ...string) error
+}
+
+// Define the PermissionRepo type.
+type PermissionRepo struct {
 	DB *sql.DB
 }
 
@@ -32,7 +38,7 @@ type PermissionModel struct {
 // Permissions slice. The code in this method should feel very familiar --- it uses the
 // standard pattern that we've already seen before for retrieving multiple data rows in
 // an SQL query.
-func (m PermissionModel) GetAllForUser(userID int64) (Permissions, error) {
+func (m PermissionRepo) GetAllForUser(userID int64) (Permissions, error) {
 	query := `
 			SELECT permissions.code
 			FROM permissions
@@ -61,7 +67,7 @@ func (m PermissionModel) GetAllForUser(userID int64) (Permissions, error) {
 	return permissions, nil
 }
 
-func (m PermissionModel) GetAllForUserInfo(userID int64) (Permissions, error) {
+func (m PermissionRepo) GetAllForUserInfo(userID int64) (Permissions, error) {
 	query := `
 			SELECT permissions.code
 			FROM permissions
@@ -90,7 +96,7 @@ func (m PermissionModel) GetAllForUserInfo(userID int64) (Permissions, error) {
 	return permissions, nil
 }
 
-func (m PermissionModel) AddForUser(userID int64, codes ...string) error {
+func (m PermissionRepo) AddForUser(userID int64, codes ...string) error {
 	query := `
 			INSERT INTO public.user_info_permissions
 			SELECT $1, permissions.id FROM permissions WHERE permissions.code = ANY($2)`
@@ -99,14 +105,3 @@ func (m PermissionModel) AddForUser(userID int64, codes ...string) error {
 	_, err := m.DB.ExecContext(ctx, query, userID, pq.Array(codes))
 	return err
 }
-
-//
-//func (m PermissionModel) AddForUserInfo(userID int64, codes ...string) error {
-//	query := `
-//			INSERT INTO public.user_info_permissions
-//			SELECT $1, permissions.id FROM permissions WHERE permissions.code = ANY($2)`
-//	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-//	defer cancel()
-//	_, err := m.DB.ExecContext(ctx, query, userID, pq.Array(codes))
-//	return err
-//}

@@ -15,10 +15,19 @@ func (app *application) logError(r *http.Request, err error) {
 	})
 }
 
+//func LogError(r *http.Request, err error) {
+//	// Use the PrintError() method to log the error message, and include the current
+//	// request method and URL as properties in the log entry.
+//	App.logger.PrintError(err, map[string]string{
+//		"request_method": r.Method,
+//		"request_url":    r.URL.String(),
+//	})
+//}
+
 // The errorResponse() method is a generic helper for sending JSON-formatted error
 // messages to the client with a given status code. CHANGE "interface" to "any" if go version is 1.18 or newer
 func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message interface{}) {
-	env := envelope{"error": message}
+	env := Envelope{"error": message}
 	// Write the response using the writeJSON() helper. If this happens to return an
 	// error then log it, and fall back to sending the client an empty response with a
 	// 500 Internal Server Error status code.
@@ -29,14 +38,34 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 }
 
+func ErrorResponse(w http.ResponseWriter, r *http.Request, status int, message interface{}) {
+	env := Envelope{"error": message}
+	// Write the response using the writeJSON() helper. If this happens to return an
+	// error then log it, and fall back to sending the client an empty response with a
+	// 500 Internal Server Error status code.
+	err := WriteJSON(w, status, env, nil)
+	if err != nil {
+		//App.logError(r, err)
+		fmt.Errorf("request_method %v, request_url %v", r.Method, r.URL.String())
+		w.WriteHeader(500)
+	}
+}
+
 // The serverErrorResponse() method will be used when our application encounters an
 // unexpected problem at runtime. It logs the detailed error message, then uses the
 // errorResponse() helper to send a 500 Internal Server Error status code and JSON
 // response (containing a generic error message) to the client.
 func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.logError(r, err)
+	//App.logError(r, err)
+	fmt.Errorf("request_method %v, request_url %v", r.Method, r.URL.String())
 	message := "the server encountered a problem and could not process your request"
 	app.errorResponse(w, r, http.StatusInternalServerError, message)
+}
+
+func ServerErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
+
+	message := "the server encountered a problem and could not process your request"
+	ErrorResponse(w, r, http.StatusInternalServerError, message)
 }
 
 // The notFoundResponse() method will be used to send a 404 Not Found status code and
@@ -44,6 +73,11 @@ func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Reque
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	message := "the requested resource could not be found"
 	app.errorResponse(w, r, http.StatusNotFound, message)
+}
+
+func NotFoundResponse(w http.ResponseWriter, r *http.Request) {
+	message := "the requested resource could not be found"
+	ErrorResponse(w, r, http.StatusNotFound, message)
 }
 
 // The methodNotAllowedResponse() method will be used to send a 405 Method Not Allowed
@@ -57,13 +91,26 @@ func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Reques
 	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
 }
 
+func BadRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
+	ErrorResponse(w, r, http.StatusBadRequest, err.Error())
+}
+
 func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
+}
+
+func FailedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
+	ErrorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
 
 func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
 	message := "unable to update the record due to an edit conflict, please try again"
 	app.errorResponse(w, r, http.StatusConflict, message)
+}
+
+func EditConflictResponse(w http.ResponseWriter, r *http.Request) {
+	message := "unable to update the record due to an edit conflict, please try again"
+	ErrorResponse(w, r, http.StatusConflict, message)
 }
 
 func (app *application) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {

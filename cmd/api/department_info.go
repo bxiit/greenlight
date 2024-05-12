@@ -36,7 +36,7 @@ func (app *application) createDepInfoHandler(w http.ResponseWriter, r *http.Requ
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/department-info/%d", departmentInfo.ID))
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"department_info": departmentInfo}, headers)
+	err = app.writeJSON(w, http.StatusCreated, Envelope{"department_info": departmentInfo}, headers)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -59,7 +59,7 @@ func (app *application) getDepartmentInfoHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"department_info": departmentInfo}, nil)
+	err = app.writeJSON(w, http.StatusOK, Envelope{"department_info": departmentInfo}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

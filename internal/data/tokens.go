@@ -11,12 +11,24 @@ import (
 )
 
 // UserModel.GetForToken(token) → Retrieve the user associated with a token
-// TokenModel.GetAllForUser(user) → Retrieve all tokens associated with a user
+// TokenRepo.GetAllForUser(user) → Retrieve all tokens associated with a user
 
 const (
 	ScopeActivation     = "activation"
 	ScopeAuthentication = "authentication" // Include a new authentication scope.
 )
+
+type TokenRepository interface {
+	New(userID int64, ttl time.Duration, scope string) (*Token, error)
+	Insert(token *Token) error
+	InsertUserInfoToken(token *Token) error
+	DeleteAllForUser(scope string, userID int64) error
+}
+
+// Define the TokenRepo type.
+type TokenRepo struct {
+	DB *sql.DB
+}
 
 // Add struct tags to control how the struct appears when encoded to JSON.
 type Token struct {
@@ -69,14 +81,9 @@ func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
 	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
 }
 
-// Define the TokenModel type.
-type TokenModel struct {
-	DB *sql.DB
-}
-
 // The New() method is a shortcut which creates a new Token struct and then inserts the
 // data in the tokens table.
-func (m TokenModel) New(userID int64, ttl time.Duration, scope string) (*Token, error) {
+func (m TokenRepo) New(userID int64, ttl time.Duration, scope string) (*Token, error) {
 	token, err := generateToken(userID, ttl, scope)
 	if err != nil {
 		return nil, err
@@ -86,7 +93,7 @@ func (m TokenModel) New(userID int64, ttl time.Duration, scope string) (*Token, 
 }
 
 // Insert() adds the data for a specific token to the tokens table.
-func (m TokenModel) Insert(token *Token) error {
+func (m TokenRepo) Insert(token *Token) error {
 	query := `
 			INSERT INTO tokens (hash, user_id, expiry, scope)
 			VALUES ($1, $2, $3, $4)`
@@ -99,7 +106,7 @@ func (m TokenModel) Insert(token *Token) error {
 }
 
 // Insert() adds the data for a specific token to the tokens table.
-func (m TokenModel) InsertUserInfoToken(token *Token) error {
+func (m TokenRepo) InsertUserInfoToken(token *Token) error {
 	query := `
 			INSERT INTO user_info_tokens (hash, user_info_id, expiry, scope)
 			VALUES ($1, $2, $3, $4)`
@@ -111,7 +118,7 @@ func (m TokenModel) InsertUserInfoToken(token *Token) error {
 }
 
 // DeleteAllForUser() deletes all tokens for a specific user and scope.
-func (m TokenModel) DeleteAllForUser(scope string, userID int64) error {
+func (m TokenRepo) DeleteAllForUser(scope string, userID int64) error {
 	query := `
 			DELETE FROM tokens
 			WHERE scope = $1 AND user_id = $2`

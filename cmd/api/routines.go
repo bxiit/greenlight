@@ -16,7 +16,6 @@ func (app *application) checkAndResendActivation() {
 		for _, user := range users {
 			err := app.models.UserInfos.DeleteExpiredToken(user.ID)
 			if err != nil {
-				println("DeleteExpiredToken IS WRONG")
 				return
 			}
 

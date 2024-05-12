@@ -36,13 +36,13 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 }
 
 func (app *application) rateLimit(next http.Handler) http.Handler {
-	// Initialize a new rate limiter which allows an average of 2 requests per second,
-	// with a maximum of 4 requests in a single ‘burst’.
-	limiter := rate.NewLimiter(2, 4)
-	// The function we are returning is a closure, which 'closes over' the limiter
+	// Initialize a new rate Limiter which allows an average of 2 requests per second,
+	// with a maximum of 4 requests in a single ‘Burst’.
+	limiter := rate.NewLimiter(10, 12)
+	// The function we are returning is a closure, which 'closes over' the Limiter
 	// variable.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Call limiter.Allow() to see if the request is permitted, and if it's not,
+		// Call Limiter.Allow() to see if the request is permitted, and if it's not,
 		// then we call the rateLimitExceededResponse() helper to return a 429 Too Many
 		// Requests response (we will create this helper in a minute).
 		if !limiter.Allow() {
@@ -56,8 +56,6 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 func (app *application) requireAdminRole(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userInfo := app.contextGetUserInfo(r)
-		println("requireAdminRole")
-		println(userInfo.Role)
 		if userInfo.Role != "admin" {
 			app.notPermittedResponse(w, r)
 			return

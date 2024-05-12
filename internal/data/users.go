@@ -22,8 +22,8 @@ type UserModel struct {
 }
 
 // Define a User struct to represent an individual user. Importantly, notice how we are
-// using the json:"-" struct tag to prevent the Password and Version fields appearing in
-// any output when we encode it to JSON. Also notice that the Password field uses the
+// using the json:"-" struct tag to prevent the password and Version fields appearing in
+// any output when we encode it to JSON. Also notice that the password field uses the
 // custom password type defined below.
 type User struct {
 	ID        int64     `json:"id"`
@@ -44,7 +44,7 @@ func (m UserModel) Insert(user *User) error {
 			INSERT INTO users (name, email, password_hash, activated)
 			VALUES ($1, $2, $3, $4)
 			RETURNING id, created_at, version`
-	//args := []any{user.Name, user.Email, user.Password.hash, user.Activated}
+	//args := []any{user.Name, user.Email, user.password.hash, user.Activated}
 	args := []interface{}{user.Name, user.Email, user.Password.hash, user.Activated}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -106,14 +106,6 @@ UPDATE users
 SET name = $1, email = $2, password_hash = $3, activated = $4, version = version + 1
 WHERE id = $5 AND version = $6
 RETURNING version`
-	//args := []any{
-	//	user.Name,
-	//	user.Email,
-	//	user.Password.hash,
-	//	user.Activated,
-	//	user.ID,
-	//	user.Version,
-	//}
 
 	args := []interface{}{
 		user.Name,

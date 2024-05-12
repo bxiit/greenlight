@@ -5,12 +5,20 @@ import (
 	"errors"
 )
 
-type ModuleInfoModel struct {
+type ModuleInfoRepository interface {
+	Create(moduleInfo *ModuleInfo) error
+	Get(id int64) (*ModuleInfo, error)
+	GetLatestFifty() ([]*ModuleInfo, error)
+	Update(moduleInfo *ModuleInfo) error
+	Delete(id int64) error
+}
+
+type ModuleInfoRepo struct {
 	DB *sql.DB
 }
 
 // Insert method for creating a record to the moduleInfos table.
-func (m ModuleInfoModel) Insert(moduleInfo *ModuleInfo) error {
+func (m ModuleInfoRepo) Create(moduleInfo *ModuleInfo) error {
 	query := `
 		INSERT INTO module_info(created_at, updated_at, module_name, module_duration, exam_type)
 		VALUES (now(), now(), $1, $2, $3)
@@ -29,7 +37,7 @@ func (m ModuleInfoModel) Insert(moduleInfo *ModuleInfo) error {
 }
 
 // Get method for fetching a specific record from the moduleInfos table.
-func (m ModuleInfoModel) Get(id int64) (*ModuleInfo, error) {
+func (m ModuleInfoRepo) Get(id int64) (*ModuleInfo, error) {
 	if id < 1 {
 		return nil, ErrRecordNotFound
 	}
@@ -62,7 +70,7 @@ func (m ModuleInfoModel) Get(id int64) (*ModuleInfo, error) {
 	return &moduleInfo, nil
 }
 
-func (m ModuleInfoModel) GetLatestFifty() ([]*ModuleInfo, error) {
+func (m ModuleInfoRepo) GetLatestFifty() ([]*ModuleInfo, error) {
 	query := `SELECT * FROM module_info ORDER BY id DESC LIMIT 50`
 
 	rows, err := m.DB.Query(query)
@@ -103,7 +111,7 @@ func (m ModuleInfoModel) GetLatestFifty() ([]*ModuleInfo, error) {
 }
 
 // Update method for updating a specific record in the moduleInfos table.
-func (m ModuleInfoModel) Update(moduleInfo *ModuleInfo) error {
+func (m ModuleInfoRepo) Update(moduleInfo *ModuleInfo) error {
 	query := `UPDATE module_info
 			  SET updated_at = now(),
 			      module_name = $1,
@@ -124,7 +132,7 @@ func (m ModuleInfoModel) Update(moduleInfo *ModuleInfo) error {
 }
 
 // Delete method for deleting a specific record from the moduleInfos table.
-func (m ModuleInfoModel) Delete(id int64) error {
+func (m ModuleInfoRepo) Delete(id int64) error {
 	if id < 1 {
 		return ErrRecordNotFound
 	}

@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"github.com/bxiit/greenlight/internal/jsonlog"
 	"github.com/bxiit/greenlight/internal/mailer"
+	"github.com/spf13/viper"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"sync"
@@ -20,89 +23,94 @@ import (
 
 const version = "1.0.0"
 
-// Add a db struct field to hold the configuration settings for our database connection
+// Add a Db struct field to hold the configuration settings for our database connection
 // pool. For now this only holds the DSN, which we will read in from a command-line flag.
-type config struct {
-	port int
-	env  string
-	db   struct {
-		dsn          string
-		maxOpenConns int
-		maxIdleConns int
-		maxIdleTime  string
+type Config struct {
+	Port int
+	Env  string
+	Db   struct {
+		Dsn          string
+		MaxOpenConns int
+		MaxIdleConns int
+		MaxIdleTime  string
 	}
-	limiter struct {
-		enabled bool
-		rps     float64
-		burst   int
+	Limiter struct {
+		Enabled bool
+		Rps     float64
+		Burst   int
 	}
-	smtp struct {
-		host     string
-		port     int
-		username string
-		password string
-		sender   string
+	Smtp struct {
+		Host     string
+		Port     int
+		Username string
+		Password string
+		Sender   string
 	}
 }
 
 type application struct {
-	config config
+	config Config
 	logger *jsonlog.Logger
-	models data.Models // hold new models in app
+	models data.Models // hold new models in App
 	mailer mailer.Mailer
 	wg     sync.WaitGroup
+	gormDB *gorm.DB
+}
+
+type ApplicationX struct {
+	mailer mailer.Mailer
+	wg     sync.WaitGroup
+	db     *sql.DB
+	models data.Models // hold new models in App
 }
 
 func main() {
-	var cfg config
-	flag.IntVar(&cfg.port, "port", 4002, "API server port")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
-	// Read the DSN value from the db-dsn command-line flag into the config struct. We
-	// default to using our development DSN if no flag is provided.
-	// in powershell use next command: $env:DSN="postgres://b.atabek:b.atabek@localhost:5432/b.atabekDB?sslmode=disable"
-	//flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("DSN")+"?sslmode=disable", "PostgresSQL DSN")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://b.atabek:b.atabek@localhost:5443/b.atabekDB?sslmode=disable", "PostgresSQL DSN")
+	viper.SetConfigFile("./config.json")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("Error reading Config file, %s", err)
+		return
+	}
 
-	// Setting restrictions on db connections
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgresSQL max open connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgresSQL max idle connections")
-	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgresSQL max idle time")
-	// flag.StringVar(&cfg.db.maxLifetime, "db-max-lifetime", "1h", "PostgresSQL max idle time")
-
-	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
-	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
-	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
-
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.office365.com", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "220002@astanait.edu.kz", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "Beka4747@", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "220002@astanait.edu.kz", "SMTP sender")
+	var cfg Config
+	err = viper.Unmarshal(&cfg)
+	if err != nil {
+		fmt.Printf("Unable to decode into struct, %v", err)
+		return
+	}
 
 	flag.Parse()
+
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
 	db, err := openDB(cfg)
 	if err != nil {
 		logger.PrintFatal(err, nil)
 	}
-	// db will be closed before main function is completed.
+	// Db will be closed before main function is completed.
 	defer db.Close()
+
+	gormDB, err := OpenGDB(db)
+	if err != nil {
+		logger.PrintFatal(err, nil)
+	}
+
 	logger.PrintInfo("database connection pool established", nil)
 
 	app := &application{
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db), // data.NewModels() function to initialize a Models struct
-		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
+		mailer: mailer.New(cfg.Smtp.Host, cfg.Smtp.Port, cfg.Smtp.Username, cfg.Smtp.Password, cfg.Smtp.Sender),
+		gormDB: gormDB,
 	}
 
 	go app.checkAndResendActivation()
 
-	// Use the httprouter instance returned by app.routes() as the server handler.
+	// Use the httprouter instance returned by App.routes() as the server handler.
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.port),
+		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
@@ -111,7 +119,7 @@ func main() {
 
 	logger.PrintInfo("starting server", map[string]string{
 		"addr": srv.Addr,
-		"env":  cfg.env,
+		"Env":  cfg.Env,
 	})
 	// reuse defined variable err
 
@@ -119,28 +127,26 @@ func main() {
 	logger.PrintFatal(err, nil)
 }
 
-func openDB(cfg config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
+func openDB(cfg Config) (*sql.DB, error) {
+	db, err := sql.Open("postgres", cfg.Db.Dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	db.SetMaxIdleConns(cfg.db.maxIdleConns)
-	db.SetMaxOpenConns(cfg.db.maxOpenConns)
+	db.SetMaxIdleConns(cfg.Db.MaxIdleConns)
+	db.SetMaxOpenConns(cfg.Db.MaxOpenConns)
 
-	duration, err := time.ParseDuration(cfg.db.maxIdleTime)
+	duration, err := time.ParseDuration(cfg.Db.MaxIdleTime)
 	if err != nil {
 		return nil, err
 	}
 	db.SetConnMaxIdleTime(duration)
-
-	// optional lifetime limit, to use this, uncomment db substruct field and corresponding flag stringvar
-	// lifetime, err := time.ParseDuration(cfg.db.maxIdleTime)
+	// optional lifetime limit, to use this, uncomment Db substruct field and corresponding flag stringvar
+	// lifetime, err := time.ParseDuration(cfg.Db.MaxIdleTime)
 	// if err != nil {
 	// 	return nil, err
 	// }
-	// db.SetConnMaxLifetime(lifetime)
-
+	// Db.SetConnMaxLifetime(lifetime)
 	//context with a 5-second timeout deadline
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -151,4 +157,13 @@ func openDB(cfg config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func OpenGDB(db *sql.DB) (*gorm.DB, error) {
+	gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	return gdb, nil
 }

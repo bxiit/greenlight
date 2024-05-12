@@ -44,7 +44,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
+	err = app.writeJSON(w, http.StatusCreated, Envelope{"movie": movie}, headers)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -53,7 +53,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // Add a showMovieHandler for the "GET /v1/movies/:id" endpoint.
-// TO-DO: Change this handler to retrieve data from a real db
+// TO-DO: Change this handler to retrieve data from a real Db
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -71,8 +71,8 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	// Encode the struct to JSON and send it as the HTTP response.
-	// using envelope
-	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
+	// using Envelope
+	err = app.writeJSON(w, http.StatusOK, Envelope{"movie": movie}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -97,7 +97,7 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"message": "movie successfully deleted"}, nil)
+	err = app.writeJSON(w, http.StatusOK, Envelope{"message": "movie successfully deleted"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -147,21 +147,21 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
+	err = app.writeJSON(w, http.StatusOK, Envelope{"movie": movie}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
 
 }
 
-//func (app *application) showAllMovieHandler(w http.ResponseWriter, r *http.Request) {
-//	movies, err := app.models.Movies.DB.Query(`SELECT * FROM movies`)
+//func (App *application) showAllMovieHandler(w http.ResponseWriter, r *http.Request) {
+//	movies, err := App.models.Movies.DB.Query(`SELECT * FROM movies`)
 //	if err != nil {
-//		app.serverErrorResponse(w, r, err)
+//		App.serverErrorResponse(w, r, err)
 //	}
 //
-//	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
+//	err = App.writeJSON(w, http.StatusOK, Envelope{"movies": movies}, nil)
 //	if err != nil {
-//		app.serverErrorResponse(w, r, err)
+//		App.serverErrorResponse(w, r, err)
 //	}
 //}

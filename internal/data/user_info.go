@@ -9,7 +9,19 @@ import (
 	"time"
 )
 
-type UserInfoModel struct {
+type UserInfoRepository interface {
+	Insert(userInfo *UserInfo) error
+	Get(id int64) (*UserInfo, error)
+	GetByEmail(email string) (*UserInfo, error)
+	GetAll() ([]*UserInfo, error)
+	Update(userInfo *UserInfo) error
+	Delete(id int64) error
+	GetForToken(tokenScope, tokenPlaintext string) (*UserInfo, error)
+	FindNotActivatedAndExpired() ([]*UserInfo, error)
+	DeleteExpiredToken(id int64) error
+}
+
+type UserInfoRepo struct {
 	DB *sql.DB
 }
 
@@ -36,7 +48,7 @@ func (u *UserInfo) IsAnonymous() bool {
 	return u == AnonymousUserInfo
 }
 
-func (m UserInfoModel) Insert(userInfo *UserInfo) error {
+func (m UserInfoRepo) Insert(userInfo *UserInfo) error {
 	query := `
 			INSERT INTO user_info (fname, sname, email, password_hash, user_role, activated)
 			VALUES ($1, $2, $3, $4, $5, $6)
@@ -56,7 +68,7 @@ func (m UserInfoModel) Insert(userInfo *UserInfo) error {
 	return nil
 }
 
-func (m UserInfoModel) Get(id int64) (*UserInfo, error) {
+func (m UserInfoRepo) Get(id int64) (*UserInfo, error) {
 	if id < 1 {
 		return nil, ErrRecordNotFound
 	}
@@ -91,7 +103,7 @@ func (m UserInfoModel) Get(id int64) (*UserInfo, error) {
 	return &userInfo, nil
 }
 
-func (m UserInfoModel) GetByEmail(email string) (*UserInfo, error) {
+func (m UserInfoRepo) GetByEmail(email string) (*UserInfo, error) {
 	query := `
 			SELECT id, created_at, updated_at, fname, sname, email, password_hash, user_role, activated, version
 			FROM public.user_info
@@ -123,7 +135,7 @@ func (m UserInfoModel) GetByEmail(email string) (*UserInfo, error) {
 	return &userInfo, nil
 }
 
-func (m UserInfoModel) GetAll() ([]*UserInfo, error) {
+func (m UserInfoRepo) GetAll() ([]*UserInfo, error) {
 	query := `SELECT id, created_at, updated_at, fname, sname, email, password_hash, user_role, activated, version FROM user_info`
 
 	rows, err := m.DB.Query(query)
@@ -160,7 +172,7 @@ func (m UserInfoModel) GetAll() ([]*UserInfo, error) {
 	return userInfos, nil
 }
 
-func (m UserInfoModel) Update(userInfo *UserInfo) error {
+func (m UserInfoRepo) Update(userInfo *UserInfo) error {
 	query := `
 			UPDATE user_info
 			SET updated_at = now(),
@@ -196,7 +208,7 @@ func (m UserInfoModel) Update(userInfo *UserInfo) error {
 	return nil
 }
 
-func (m UserInfoModel) Delete(id int64) error {
+func (m UserInfoRepo) Delete(id int64) error {
 	if id < 1 {
 		return ErrRecordNotFound
 	}
@@ -222,7 +234,7 @@ func (m UserInfoModel) Delete(id int64) error {
 	return nil
 }
 
-func (m UserInfoModel) GetForToken(tokenScope, tokenPlaintext string) (*UserInfo, error) {
+func (m UserInfoRepo) GetForToken(tokenScope, tokenPlaintext string) (*UserInfo, error) {
 	// Calculate the SHA-256 hash of the plaintext token provided by the client.
 	// Remember that this returns a byte *array* with length 32, not a slice.
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
@@ -296,7 +308,7 @@ func ValidateUserInfo(v *validator.Validator, userInfo *UserInfo) {
 	}
 }
 
-func (m UserInfoModel) FindNotActivatedAndExpired() ([]*UserInfo, error) {
+func (m UserInfoRepo) FindNotActivatedAndExpired() ([]*UserInfo, error) {
 	query := `
 			SELECT u.*
 			FROM user_info u
@@ -327,7 +339,7 @@ func (m UserInfoModel) FindNotActivatedAndExpired() ([]*UserInfo, error) {
 	return users, nil
 }
 
-func (m UserInfoModel) DeleteExpiredToken(id int64) error {
+func (m UserInfoRepo) DeleteExpiredToken(id int64) error {
 	query := `
 		DELETE FROM user_info_tokens WHERE user_info_id = $1
 `

@@ -1,0 +1,22 @@
+{
+  "port": 4002,
+  "env": "development",
+  "db": {
+    "dsn": "postgres://b.atabek:b.atabek@localhost:5443/b.atabekDB?sslmode=disable",
+    "maxOpenConns": 25,
+    "maxIdleConns": 25,
+    "maxIdleTime": "15m"
+  },
+  "limiter": {
+    "enabled": true,
+    "rps": 2,
+    "burst": 4
+  },
+  "smtp": {
+    "host": "smtp.office365.com",
+    "port": 587,
+    "username": "220002@astanait.edu.kz",
+    "password": "Beka4747@",
+    "sender": "220002@astanait.edu.kz"
+  }
+}
